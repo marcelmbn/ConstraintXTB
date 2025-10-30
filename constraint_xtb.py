@@ -386,7 +386,7 @@ class XTB:
 def run_constraint_opt(
     structure: Path | str,
     *,
-    xtb_path: Path | str = Path("xtb_dev"),
+    xtb_path: Path | str = Path("xtb"),
     gfn_method: str = "gfn2",
     ncores: int = 4,
     force_constant: float | None = None,
@@ -405,7 +405,7 @@ def run_constraint_opt(
     structure : Path | str
         Path to the structure file (e.g. xyz) that should be optimised.
     xtb_path : Path | str, optional
-        Path to the xtb executable. Defaults to ``Path("xtb_dev")``.
+        Path to the xtb executable. Defaults to ``Path("xtb")``.
     gfn_method : str, optional
         Identifier of the GFN method to use (``gfn0``, ``gfn1``, ``gfn2``, ``gfnff``). Defaults to ``"gfn2"``.
     ncores : int, optional
