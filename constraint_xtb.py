@@ -116,13 +116,21 @@ class DetailedInput:
         atom2: int,
         value: ConstraintValueInput,
     ) -> DetailedInput:
-        """
-        Add a distance constraint to the detailed input.
+        """Add a distance constraint to the detailed input.
 
-        Arguments:
-            atom1: Index (1-based) of the first atom.
-            atom2: Index (1-based) of the second atom.
-            value: Target distance in ångström or the literal ``'auto'``.
+        Parameters
+        ----------
+        atom1 : int
+            Index (1-based) of the first atom.
+        atom2 : int
+            Index (1-based) of the second atom.
+        value : ConstraintValueInput
+            Target distance in ångström or the literal ``'auto'``.
+
+        Returns
+        -------
+        DetailedInput
+            The current instance for fluent chaining.
         """
         normalized_value = coerce_constraint_value(value)
         constraint = DistanceConstraint(
@@ -138,14 +146,23 @@ class DetailedInput:
         atom3: int,
         value: ConstraintValueInput,
     ) -> DetailedInput:
-        """
-        Add an angle constraint to the detailed input.
+        """Add an angle constraint to the detailed input.
 
-        Arguments:
-            atom1: Index of the first atom.
-            atom2: Index of the vertex atom.
-            atom3: Index of the third atom.
-            value: Target angle in degrees or ``'auto'``.
+        Parameters
+        ----------
+        atom1 : int
+            Index of the first atom.
+        atom2 : int
+            Index of the vertex atom.
+        atom3 : int
+            Index of the third atom.
+        value : ConstraintValueInput
+            Target angle in degrees or ``'auto'``.
+
+        Returns
+        -------
+        DetailedInput
+            The current instance for fluent chaining.
         """
         normalized_value = coerce_constraint_value(value)
         constraint = AngleConstraint(
@@ -162,15 +179,25 @@ class DetailedInput:
         atom4: int,
         value: ConstraintValueInput,
     ) -> DetailedInput:
-        """
-        Add a dihedral constraint to the detailed input.
+        """Add a dihedral constraint to the detailed input.
 
-        Arguments:
-            atom1: Index of the first atom.
-            atom2: Index of the second atom.
-            atom3: Index of the third atom.
-            atom4: Index of the fourth atom.
-            value: Target dihedral angle in degrees or ``'auto'``.
+        Parameters
+        ----------
+        atom1 : int
+            Index of the first atom.
+        atom2 : int
+            Index of the second atom.
+        atom3 : int
+            Index of the third atom.
+        atom4 : int
+            Index of the fourth atom.
+        value : ConstraintValueInput
+            Target dihedral angle in degrees or ``'auto'``.
+
+        Returns
+        -------
+        DetailedInput
+            The current instance for fluent chaining.
         """
         normalized_value = coerce_constraint_value(value)
         constraint = DihedralConstraint(
@@ -292,13 +319,35 @@ class XTB:
         ncores: int,
         *,
         verbose: bool = False,
+        workdir: Path | None = None,
     ) -> int:
-        """
-        Run an xtb optimization with the given number of cores.
+        """Run an xtb optimization with the given number of cores.
+
+        Parameters
+        ----------
+        input_structure : str
+            Path to the coordinate file that should be optimised.
+        gfn_method : str
+            Identifier of the GFN method to use.
+        ncores : int
+            Number of CPU cores.
+        verbose : bool, optional
+            When ``True`` print the captured stdout/stderr streams.
+        workdir : Path | None, optional
+            Directory used as working directory for the xtb execution. Defaults to the
+            current directory when ``None``.
+
+        Returns
+        -------
+        int
+            Return code of the xtb execution.
         """
 
-        temp_path = Path(".")
-        detailed_input_file = self.detailedinput.write(temp_path / "detailed_input.inp")
+        working_directory = workdir or Path("xtb_constraint_opt")
+        working_directory.mkdir(parents=True, exist_ok=True)
+        detailed_input_file = self.detailedinput.write(
+            working_directory / "detailed_input.inp"
+        )
 
         try:
             gfn_flag = self.dict_gfn_map[gfn_method.lower()]
@@ -315,10 +364,10 @@ class XTB:
             "-P",
             f"{ncores}",
             "--input",
-            str(detailed_input_file),
+            str(detailed_input_file.name),
         ]
         xtb_out, xtb_err, return_code = self._run(
-            temp_path=temp_path, arguments=arguments
+            temp_path=working_directory, arguments=arguments
         )
 
         if verbose:
@@ -346,22 +395,41 @@ def run_constraint_opt(
     dihedrals: Iterable[tuple[int, int, int, int, ConstraintValueInput]] | None = None,
     detailed_input: DetailedInput | None = None,
     verbose: bool = False,
+    workdir: Path | None = None,
 ) -> int:
     """
     Run an xTB optimisation with optional distance, angle and dihedral constraints.
 
-    Arguments:
-        structure: Path to the structure file (e.g. xyz) that should be optimised.
-        xtb_path: Path to the xtb executable. Defaults to ``'xtb'``.
-        gfn_method: Identifier of the GFN method to use (``gfn0``, ``gfn1``, ``gfn2``, ``gfnff``).
-        ncores: Number of CPU cores to pass via ``-P``.
-        force_constant: Optional global force constant applied to the constraints.
-        distances: Optional iterable of ``(atom_i, atom_j, value)`` tuples defining distance constraints.
-        angles: Optional iterable of ``(atom_i, atom_j, atom_k, value)`` tuples defining angle constraints.
-        dihedrals: Optional iterable of ``(atom_i, atom_j, atom_k, atom_l, value)`` tuples defining dihedral constraints.
-        detailed_input: Preconfigured ``DetailedInput`` instance. When provided, additional constraint
-            arguments are merged into this instance.
-        verbose: When ``True``, print the captured xtb stdout/stderr streams.
+    Parameters
+    ----------
+    structure : Path | str
+        Path to the structure file (e.g. xyz) that should be optimised.
+    xtb_path : Path | str, optional
+        Path to the xtb executable. Defaults to ``Path("xtb_dev")``.
+    gfn_method : str, optional
+        Identifier of the GFN method to use (``gfn0``, ``gfn1``, ``gfn2``, ``gfnff``). Defaults to ``"gfn2"``.
+    ncores : int, optional
+        Number of CPU cores to pass via ``-P``. Defaults to ``4``.
+    force_constant : float | None, optional
+        Global force constant applied to the constraints. Defaults to ``None``.
+    distances : Iterable[tuple[int, int, ConstraintValueInput]] | None, optional
+        Iterable of ``(atom_i, atom_j, value)`` tuples defining distance constraints. Defaults to ``None``.
+    angles : Iterable[tuple[int, int, int, ConstraintValueInput]] | None, optional
+        Iterable of ``(atom_i, atom_j, atom_k, value)`` tuples defining angle constraints. Defaults to ``None``.
+    dihedrals : Iterable[tuple[int, int, int, int, ConstraintValueInput]] | None, optional
+        Iterable of ``(atom_i, atom_j, atom_k, atom_l, value)`` tuples defining dihedral constraints. Defaults to ``None``.
+    detailed_input : DetailedInput | None, optional
+        Preconfigured ``DetailedInput`` instance. When provided, additional constraint arguments are merged into this instance.
+        Defaults to ``None``.
+    verbose : bool, optional
+        When ``True``, print the captured xtb stdout/stderr streams. Defaults to ``False``.
+    workdir : Path | None, optional
+        Directory used as working directory for the xtb execution. Defaults to the current directory.
+
+    Returns
+    -------
+    int
+        Return code of the xtb execution.
     """
     if isinstance(structure, Path):
         structure = str(structure.resolve())
@@ -387,7 +455,12 @@ def run_constraint_opt(
             for dihedral in dihedrals:
                 detailedinput.add_dihedral_constraint(*dihedral)
 
+    workdir_path = Path(workdir) if workdir is not None else None
     xtb = XTB(path=Path(xtb_path), detailedinput=detailedinput)
     return xtb.run_xtb(
-        input_structure=structure, gfn_method=gfn_method, ncores=ncores, verbose=verbose
+        input_structure=structure,
+        gfn_method=gfn_method,
+        ncores=ncores,
+        verbose=verbose,
+        workdir=workdir_path,
     )
